@@ -1,0 +1,21 @@
+parameters:
+    sirian_signer.signer.class: Sirian\Signer\HMACSigner
+    sirian_signer.encoder.class: Sirian\Signer\Encoder
+    sirian_signer.decoder.class: Sirian\Signer\Decoder
+
+services:
+    sirian_signer.signer:
+        class: %sirian_signer.signer.class%
+        arguments: [%sirian_signer.secret%, %sirian_signer.algorithm%]
+
+    sirian_signer.encoder:
+        class: %sirian_signer.encoder.class%
+        arguments: [@sirian_signer.signer]
+
+    sirian_signer.decoder:
+        class: %sirian_signer.decoder.class%
+        arguments: [@sirian_signer.signer]
+
+    sirian_signer.manager:
+        class: Sirian\SignerBundle\Manager
+        arguments: [@sirian_signer.encoder, @sirian_signer.decoder]
