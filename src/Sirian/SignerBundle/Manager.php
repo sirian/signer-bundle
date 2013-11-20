@@ -33,4 +33,11 @@ class Manager
     {
         return $this->decoder->decode($string, $intention);
     }
+
+    public function getSignedLoginParameters($username, \DateTime $expires = null)
+    {
+        return [
+            'signed_request' => $this->encode(['username' => $username], 'authenticate', $expires)
+        ];
+    }
 }
