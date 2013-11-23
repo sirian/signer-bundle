@@ -20,14 +20,21 @@ class SignedRequestListener extends AbstractAuthenticationListener
     public function setDecoder($decoder)
     {
         $this->decoder = $decoder;
+
+        return $this;
     }
 
-    protected function attemptAuthentication(Request $request)
+    protected function requiresAuthentication(Request $request)
+    {
+        return $request->query->has($this->options['signed_login_parameter']);
+    }
+
+    public function attemptAuthentication(Request $request)
     {
         try {
             $data = $this
                 ->decoder
-                ->decode($request->query->get('signed_request', ''), 'authenticate')
+                ->decode($request->query->get($this->options['signed_login_parameter']), 'authenticate')
                 ->getData()
             ;
         } catch (ExpiredException $e) {
@@ -41,6 +48,11 @@ class SignedRequestListener extends AbstractAuthenticationListener
         }
 
         $token = new SignedRequestToken($data['username']);
+
+        $query = $request->query->all();
+        unset($query[$this->options['signed_login_parameter']]);
+        $request->server->set('QUERY_STRING', http_build_query($query));
+        $request->attributes->set($this->options['target_path_parameter'], $request->getUri());
 
         return $this->authenticationManager->authenticate($token);
     }
