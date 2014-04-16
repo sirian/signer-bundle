@@ -48,6 +48,7 @@ class SignedRequestListener extends AbstractAuthenticationListener
         }
 
         $token = new SignedRequestToken($data['username']);
+        $token->setSignedData($data);
 
         $query = $request->query->all();
         unset($query[$this->options['signed_login_parameter']]);

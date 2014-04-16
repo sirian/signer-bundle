@@ -37,8 +37,10 @@ class SignedRequestProvider implements AuthenticationProviderInterface
             throw new AuthenticationServiceException('The user provider must return a UserInterface object.');
         }
 
+        $signedData = $token->getSignedData();
         $token = new SignedRequestToken($user->getUsername(), $user->getRoles());
 
+        $token->setSignedData($signedData);
         $token->setUser($user);
         $token->setAuthenticated(true);
 

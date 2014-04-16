@@ -6,7 +6,7 @@ use Symfony\Component\Security\Core\Authentication\Token\AbstractToken as BaseAb
 
 class SignedRequestToken extends BaseAbstractToken
 {
-    protected $userData;
+    protected $signedData;
 
     public function __construct($username, $roles = array())
     {
@@ -14,6 +14,18 @@ class SignedRequestToken extends BaseAbstractToken
 
         $this->setUser($username);
         $this->setAuthenticated(count($roles) > 0);
+    }
+
+    public function getSignedData()
+    {
+        return $this->signedData;
+    }
+
+    public function setSignedData($data)
+    {
+        $this->signedData = $data;
+
+        return $this;
     }
 
     public function getCredentials()
