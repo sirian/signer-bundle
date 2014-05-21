@@ -3,37 +3,14 @@
 namespace Sirian\SignerBundle\DependencyInjection\Security\Factory;
 
 use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\AbstractFactory;
+use Symfony\Bundle\SecurityBundle\DependencyInjection\Security\Factory\SecurityFactoryInterface;
+use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\DefinitionDecorator;
 use Symfony\Component\DependencyInjection\Reference;
 
-class SignedRequestFactory extends AbstractFactory
+class SignedRequestFactory implements SecurityFactoryInterface
 {
-    public function __construct()
-    {
-        $this->options = array_merge($this->options, [
-            'signed_login_parameter' => 'signed_login',
-            'require_previous_session' => false
-        ]);
-    }
-
-    protected function createAuthProvider(ContainerBuilder $container, $id, $config, $userProviderId)
-    {
-        $providerId = 'sirian_signer.authentication.provider.' . $id;
-
-        $container
-            ->setDefinition($providerId, new DefinitionDecorator('sirian_signer.authentication.provider'))
-            ->addArgument(new Reference($userProviderId))
-        ;
-
-        return $providerId;
-    }
-
-    protected function getListenerId()
-    {
-        return 'sirian_signer.authentication.listener';
-    }
-
     public function getKey()
     {
         return 'sirian_signed_request';
@@ -41,6 +18,34 @@ class SignedRequestFactory extends AbstractFactory
 
     public function getPosition()
     {
-        return 'http';
+        return 'pre_auth';
+    }
+
+    public function create(ContainerBuilder $container, $id, $config, $userProvider, $defaultEntryPoint)
+    {
+        $providerId = 'security.authentication.provider.sirian_signer.'.$id;
+        $container
+            ->setDefinition($providerId, new DefinitionDecorator('sirian_signer.authentication.provider'))
+            ->replaceArgument(1, new Reference($userProvider))
+        ;
+
+        $listenerId = 'security.authentication.listener.sirian_signer.'.$id;
+        $listener = $container->setDefinition($listenerId, new DefinitionDecorator('sirian_signer.authentication.listener'));
+        $listener
+            ->replaceArgument(3, $config);
+        ;
+
+        return array($providerId, $listenerId, $defaultEntryPoint);
+    }
+
+    public function addConfiguration(NodeDefinition $builder)
+    {
+        $builder
+            ->children()
+                ->scalarNode('signed_login_parameter')->defaultValue('signed_login')->end()
+                ->scalarNode('intention')->defaultValue('authenticate')->end()
+                ->scalarNode('success_handler')->end()
+                ->scalarNode('failure_handler')->end()
+        ;
     }
 }

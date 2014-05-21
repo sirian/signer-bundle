@@ -22,14 +22,12 @@ services:
 
     sirian_signer.authentication.provider:
         class: Sirian\SignerBundle\Security\Authentication\Provider\SignedRequestProvider
-        arguments: [@security.user_checker]
+        arguments: [@security.user_checker, ~]
         public: false
 
     sirian_signer.authentication.listener:
         class: Sirian\SignerBundle\Security\Firewall\SignedRequestListener
-        parent: security.authentication.listener.abstract
-        calls:
-            - [setDecoder, [@sirian_signer.decoder]]
+        arguments: [@sirian_signer.decoder, @security.context, @security.authentication.manager, ~]
         public: false
         abstract: true
 

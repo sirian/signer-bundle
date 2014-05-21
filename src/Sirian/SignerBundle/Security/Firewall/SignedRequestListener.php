@@ -7,34 +7,80 @@ use Sirian\Signer\ExpiredException;
 use Sirian\Signer\SignException;
 use Sirian\SignerBundle\Security\Authentication\Token\SignedRequestToken;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\GetResponseEvent;
+use Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener;
+use Symfony\Component\Security\Core\SecurityContextInterface;
+use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
+use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
+use Symfony\Component\Security\Http\Firewall\ListenerInterface;
 
-class SignedRequestListener extends AbstractAuthenticationListener
+class SignedRequestListener implements ListenerInterface
 {
-    /**
-     * @var Decoder
-     */
-    protected $decoder;
+    private $decoder;
+    private $securityContext;
+    private $authenticationManager;
+    private $options;
 
-    public function setDecoder($decoder)
+    public function __construct(Decoder $decoder, SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, array $options = [])
     {
+        $this->securityContext = $securityContext;
+        $this->authenticationManager = $authenticationManager;
+        $this->options = array_merge([
+            'signed_login_parameter' => 'signed_login',
+            'intention' => 'signed_login',
+            'success_handler' => null,
+            'failure_handler' => null,
+        ], $options);
         $this->decoder = $decoder;
-
-        return $this;
     }
 
-    protected function requiresAuthentication(Request $request)
+    public function handle(GetResponseEvent $event)
     {
-        return $request->query->has($this->options['signed_login_parameter']);
+        $request = $event->getRequest();
+
+        if (!$request->query->has($this->options['signed_login_parameter'])) {
+            return;
+        }
+
+        try {
+            $token = $this->createToken($request);
+            $token = $this->authenticationManager->authenticate($token);
+            $this->securityContext->setToken($token);
+        } catch (AuthenticationException $e) {
+            $this->securityContext->setToken(null);
+
+            $failureHandler = $this->options['failure_handler'];
+            if ($failureHandler instanceof AuthenticationFailureHandlerInterface) {
+                $response = $failureHandler->onAuthenticationFailure($request, $e);
+                if ($response instanceof Response) {
+                    $event->setResponse($response);
+                } elseif (null !== $response) {
+                    throw new \UnexpectedValueException(sprintf('The %s::onAuthenticationFailure method must return null or a Response object', get_class($this->failureHandler)));
+                }
+            }
+
+            return;
+        }
+
+        $successHandler = $this->options['success_handler'];
+        if ($successHandler instanceof AuthenticationSuccessHandlerInterface) {
+            $response = $successHandler->onAuthenticationSuccess($request, $token);
+            if ($response instanceof Response) {
+                $event->setResponse($response);
+            } elseif (null !== $response) {
+                throw new \UnexpectedValueException(sprintf('The %s::onAuthenticationSuccess method must return null or a Response object', get_class($this->successHandler)));
+            }
+        }
     }
 
-    public function attemptAuthentication(Request $request)
+    public function createToken(Request $request)
     {
         try {
             $data = $this
                 ->decoder
-                ->decode($request->query->get($this->options['signed_login_parameter']), 'authenticate')
+                ->decode($request->query->get($this->options['signed_login_parameter']), $this->options['intention'])
                 ->getData()
             ;
         } catch (ExpiredException $e) {
@@ -50,11 +96,6 @@ class SignedRequestListener extends AbstractAuthenticationListener
         $token = new SignedRequestToken($data['username']);
         $token->setSignedData($data);
 
-        $query = $request->query->all();
-        unset($query[$this->options['signed_login_parameter']]);
-        $request->server->set('QUERY_STRING', http_build_query($query));
-        $request->attributes->set($this->options['target_path_parameter'], $request->getUri());
-
-        return $this->authenticationManager->authenticate($token);
+        return $token;
     }
 }
