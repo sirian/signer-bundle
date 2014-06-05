@@ -31,8 +31,11 @@ class SignedRequestFactory implements SecurityFactoryInterface
 
         $listenerId = 'security.authentication.listener.sirian_signer.'.$id;
         $listener = $container->setDefinition($listenerId, new DefinitionDecorator('sirian_signer.authentication.listener'));
+
         $listener
-            ->replaceArgument(3, $config);
+            ->replaceArgument(3, isset($config['success_handler']) ? new Reference($config['success_handler']) : null)
+            ->replaceArgument(4, isset($config['failure_handler']) ? new Reference($config['failure_handler']) : null)
+            ->replaceArgument(5, $config);
         ;
 
         return array($providerId, $listenerId, $defaultEntryPoint);

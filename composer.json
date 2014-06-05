@@ -7,6 +7,6 @@
     },
     "require": {
         "php": ">=5.3.3",
-        "sirian/signer": "~1.0"
+        "sirian/signer": "~2.0"
     }
 }

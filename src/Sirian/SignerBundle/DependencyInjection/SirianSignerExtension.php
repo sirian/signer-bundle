@@ -16,7 +16,16 @@ class SirianSignerExtension extends Extension
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yml');
 
-        $container->setParameter('sirian_signer.secret', $config['secret']);
-        $container->setParameter('sirian_signer.algorithm', $config['algorithm']);
+
+        $container
+            ->getDefinition('sirian_signer.filter.chain')
+            ->replaceArgument(1, $config['filters'])
+        ;
+
+        $container
+            ->getDefinition('sirian_signer.manager')
+            ->replaceArgument(0, $config['algorithm'])
+            ->replaceArgument(1, $config['secret'])
+        ;
     }
 }

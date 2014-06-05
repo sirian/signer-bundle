@@ -1,24 +1,29 @@
-parameters:
-    sirian_signer.signer.class: Sirian\Signer\HMACSigner
-    sirian_signer.encoder.class: Sirian\Signer\Encoder
-    sirian_signer.decoder.class: Sirian\Signer\Decoder
-
 services:
-    sirian_signer.signer:
-        class: %sirian_signer.signer.class%
-        arguments: [%sirian_signer.secret%, %sirian_signer.algorithm%]
+    sirian_signer.filter.base64:
+        class: Sirian\Signer\Filter\Base64Filter
+        tags:
+            - {name: sirian_signer.filter, alias: base64}
 
-    sirian_signer.encoder:
-        class: %sirian_signer.encoder.class%
-        arguments: [@sirian_signer.signer]
+    sirian_signer.filter.json:
+        class: Sirian\Signer\Filter\JsonFilter
+        tags:
+            - {name: sirian_signer.filter, alias: json}
 
-    sirian_signer.decoder:
-        class: %sirian_signer.decoder.class%
-        arguments: [@sirian_signer.signer]
+    sirian_signer.filter.gz:
+        class: Sirian\Signer\Filter\GzFilter
+        tags:
+            - {name: sirian_signer.filter, alias: gz}
+
+    sirian_signer.filter_registry:
+        class: Sirian\Signer\Filter\FilterRegistry
+
+    sirian_signer.filter.chain:
+        class: Sirian\Signer\Filter\ChainFilter
+        arguments: [@sirian_signer.filter_registry, ~]
 
     sirian_signer.manager:
-        class: Sirian\SignerBundle\Manager
-        arguments: [@sirian_signer.encoder, @sirian_signer.decoder]
+        class: Sirian\Signer\Manager
+        arguments: [~, ~, sirian_signer.filter.chain]
 
     sirian_signer.authentication.provider:
         class: Sirian\SignerBundle\Security\Authentication\Provider\SignedRequestProvider
@@ -27,7 +32,7 @@ services:
 
     sirian_signer.authentication.listener:
         class: Sirian\SignerBundle\Security\Firewall\SignedRequestListener
-        arguments: [@sirian_signer.decoder, @security.context, @security.authentication.manager, ~]
+        arguments: [@sirian_signer.manager, @security.context, @security.authentication.manager, ~, ~, ~]
         public: false
         abstract: true
 

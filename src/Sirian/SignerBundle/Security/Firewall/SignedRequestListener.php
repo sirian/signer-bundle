@@ -2,9 +2,9 @@
 
 namespace Sirian\SignerBundle\Security\Firewall;
 
-use Sirian\Signer\Decoder;
 use Sirian\Signer\ExpiredException;
-use Sirian\Signer\SignException;
+use Sirian\Signer\Manager;
+use Sirian\Signer\SignerException;
 use Sirian\SignerBundle\Security\Authentication\Token\SignedRequestToken;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,12 +18,14 @@ use Symfony\Component\Security\Http\Firewall\ListenerInterface;
 
 class SignedRequestListener implements ListenerInterface
 {
-    private $decoder;
+    private $manager;
     private $securityContext;
     private $authenticationManager;
     private $options;
+    private $failureHandler;
+    private $successHandler;
 
-    public function __construct(Decoder $decoder, SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, array $options = [])
+    public function __construct(Manager $manager, SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, AuthenticationSuccessHandlerInterface $successHandler = null, AuthenticationFailureHandlerInterface $failureHandler = null, array $options = [])
     {
         $this->securityContext = $securityContext;
         $this->authenticationManager = $authenticationManager;
@@ -33,7 +35,9 @@ class SignedRequestListener implements ListenerInterface
             'success_handler' => null,
             'failure_handler' => null,
         ], $options);
-        $this->decoder = $decoder;
+        $this->manager = $manager;
+        $this->failureHandler = $failureHandler;
+        $this->successHandler = $successHandler;
     }
 
     public function handle(GetResponseEvent $event)
@@ -50,10 +54,10 @@ class SignedRequestListener implements ListenerInterface
             $this->securityContext->setToken($token);
         } catch (AuthenticationException $e) {
             $this->securityContext->setToken(null);
+;
 
-            $failureHandler = $this->options['failure_handler'];
-            if ($failureHandler instanceof AuthenticationFailureHandlerInterface) {
-                $response = $failureHandler->onAuthenticationFailure($request, $e);
+            if ($this->failureHandler instanceof AuthenticationFailureHandlerInterface) {
+                $response = $this->failureHandler->onAuthenticationFailure($request, $e);
                 if ($response instanceof Response) {
                     $event->setResponse($response);
                 } elseif (null !== $response) {
@@ -64,9 +68,10 @@ class SignedRequestListener implements ListenerInterface
             return;
         }
 
-        $successHandler = $this->options['success_handler'];
-        if ($successHandler instanceof AuthenticationSuccessHandlerInterface) {
-            $response = $successHandler->onAuthenticationSuccess($request, $token);
+
+
+        if ($this->successHandler instanceof AuthenticationSuccessHandlerInterface) {
+            $response = $this->successHandler->onAuthenticationSuccess($request, $token);
             if ($response instanceof Response) {
                 $event->setResponse($response);
             } elseif (null !== $response) {
@@ -79,13 +84,13 @@ class SignedRequestListener implements ListenerInterface
     {
         try {
             $data = $this
-                ->decoder
+                ->manager
                 ->decode($request->query->get($this->options['signed_login_parameter']), $this->options['intention'])
                 ->getData()
             ;
         } catch (ExpiredException $e) {
             throw new AuthenticationException('Signed request expired', 0, $e);
-        } catch (SignException $e) {
+        } catch (SignerException $e) {
             throw new AuthenticationException('Invalid signed request', 0, $e);
         }
 
