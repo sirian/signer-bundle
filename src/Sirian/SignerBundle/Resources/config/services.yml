@@ -23,7 +23,7 @@ services:
 
     sirian_signer.manager:
         class: Sirian\Signer\Manager
-        arguments: [~, ~, sirian_signer.filter.chain]
+        arguments: [~, ~, @sirian_signer.filter.chain]
 
     sirian_signer.authentication.provider:
         class: Sirian\SignerBundle\Security\Authentication\Provider\SignedRequestProvider
