@@ -17,7 +17,7 @@ class Configuration  implements ConfigurationInterface
                 ->scalarNode('secret')->isRequired()->end()
                 ->scalarNode('algorithm')->defaultValue('sha256')->end()
                 ->arrayNode('filters')
-                    ->defaultValue(['base64', 'gz', 'json'])
+                    ->defaultValue(['json', 'gz', 'base64'])
                     ->beforeNormalization()
                         ->ifTrue(function ($v) { return !is_array($v) && !is_null($v); })
                         ->then(function ($v) { return is_bool($v) ? array() : preg_split('/\s*,\s*/', $v); })
