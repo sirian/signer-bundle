@@ -10,8 +10,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\GetResponseEvent;
 use Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Core\SecurityContextInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
 use Symfony\Component\Security\Http\Firewall\ListenerInterface;
@@ -19,15 +19,15 @@ use Symfony\Component\Security\Http\Firewall\ListenerInterface;
 class SignedRequestListener implements ListenerInterface
 {
     private $manager;
-    private $securityContext;
+    private $tokenStorage;
     private $authenticationManager;
     private $options;
     private $failureHandler;
     private $successHandler;
 
-    public function __construct(Manager $manager, SecurityContextInterface $securityContext, AuthenticationManagerInterface $authenticationManager, AuthenticationSuccessHandlerInterface $successHandler = null, AuthenticationFailureHandlerInterface $failureHandler = null, array $options = [])
+    public function __construct(Manager $manager, TokenStorageInterface $tokenStorage, AuthenticationManagerInterface $authenticationManager, AuthenticationSuccessHandlerInterface $successHandler = null, AuthenticationFailureHandlerInterface $failureHandler = null, array $options = [])
     {
-        $this->securityContext = $securityContext;
+        $this->tokenStorage = $tokenStorage;
         $this->authenticationManager = $authenticationManager;
         $this->options = array_merge([
             'signed_login_parameter' => 'signed_login',
@@ -51,10 +51,9 @@ class SignedRequestListener implements ListenerInterface
         try {
             $token = $this->createToken($request);
             $token = $this->authenticationManager->authenticate($token);
-            $this->securityContext->setToken($token);
+            $this->tokenStorage->setToken($token);
         } catch (AuthenticationException $e) {
-            $this->securityContext->setToken(null);
-;
+            $this->tokenStorage->setToken(null);
 
             if ($this->failureHandler instanceof AuthenticationFailureHandlerInterface) {
                 $response = $this->failureHandler->onAuthenticationFailure($request, $e);

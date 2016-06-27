@@ -19,20 +19,20 @@ services:
 
     sirian_signer.filter.chain:
         class: Sirian\Signer\Filter\ChainFilter
-        arguments: [@sirian_signer.filter_registry, ~]
+        arguments: ["@sirian_signer.filter_registry", ~]
 
     sirian_signer.manager:
         class: Sirian\Signer\Manager
-        arguments: [~, ~, @sirian_signer.filter.chain]
+        arguments: [~, ~, "@sirian_signer.filter.chain"]
 
     sirian_signer.authentication.provider:
         class: Sirian\SignerBundle\Security\Authentication\Provider\SignedRequestProvider
-        arguments: [@security.user_checker, ~]
+        arguments: ["@security.user_checker", ~]
         public: false
 
     sirian_signer.authentication.listener:
         class: Sirian\SignerBundle\Security\Firewall\SignedRequestListener
-        arguments: [@sirian_signer.manager, @security.context, @security.authentication.manager, ~, ~, ~]
+        arguments: ["@sirian_signer.manager", "@security.token_storage", "@security.authentication.manager", ~, ~, ~]
         public: false
         abstract: true
 
